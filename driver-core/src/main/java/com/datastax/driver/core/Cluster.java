@@ -221,6 +221,7 @@ public class Cluster {
         private RetryPolicy retryPolicy;
 
         private ProtocolOptions.Compression compression = ProtocolOptions.Compression.NONE;
+        private SSLOptions sslOptions = null;
         private boolean metricsEnabled = true;
         private final PoolingOptions poolingOptions = new PoolingOptions();
         private final SocketOptions socketOptions = new SocketOptions();
@@ -379,6 +380,29 @@ public class Cluster {
         }
 
         /**
+         * Enable the use of SSL for created {@code Cluster}.
+         * <p>
+         * Calling this method will use default SSL options (see {@link SSLOptions#SSLOptions()}).
+         * This is thus a shortcut for {@code withSSL(new SSLOptions())}.
+         *
+         * @return this builder
+         */
+        public Builder withSSL() {
+            this.sslOptions = new SSLOptions();
+            return this;
+        }
+
+        /**
+         * Enable the use of SSL for created {@code Cluster} using the provided options.
+         *
+         * @return this builder
+         */
+        public Builder withSSL(SSLOptions sslOptions) {
+            this.sslOptions = sslOptions;
+            return this;
+        }
+
+        /**
          * Disable metrics collection for the created cluster (metrics are
          * enabled by default otherwise).
          *
@@ -427,7 +451,7 @@ public class Cluster {
                 retryPolicy == null ? Policies.DEFAULT_RETRY_POLICY : retryPolicy
             );
             return new Configuration(policies,
-                                     new ProtocolOptions(port).setCompression(compression),
+                                     new ProtocolOptions(port, sslOptions).setCompression(compression),
                                      poolingOptions,
                                      socketOptions,
                                      authProvider,
