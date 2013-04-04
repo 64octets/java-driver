@@ -5,6 +5,7 @@ CHANGELOG
     - [JAVA-51] Support blob constants in the query builder.
     - [JAVA-60] Support counter batches in the query builder.
     - [JAVA-61] Basic support for custom CQL3 types.
+    - [JAVA-62] Fix failover bug in DCAwareRoundRobinPolicy.
 
 
 * 1.0.0-beta1:

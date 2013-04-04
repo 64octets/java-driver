@@ -167,6 +167,82 @@ public class LoadBalancingPolicyTest {
         tokenAwareTest(true);
     }
 
+    @Test(groups = "integration")
+    public void dcAwareRoundRobinTestWithOneRemoteHost() throws Throwable {
+
+        Cluster.Builder builder = Cluster.builder().withLoadBalancingPolicy(new DCAwareRoundRobinPolicy("dc2", 1));
+        CCMBridge.CCMCluster c = CCMBridge.buildCluster(2, 2, builder);
+        createMultiDCSchema(c.session);
+        try {
+
+            init(c, 12);
+            query(c, 12);
+
+            assertQueried(CCMBridge.IP_PREFIX + "1", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "2", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "3", 6);
+            assertQueried(CCMBridge.IP_PREFIX + "4", 6);
+            assertQueried(CCMBridge.IP_PREFIX + "5", 0);
+
+            resetCoordinators();
+            c.cassandraCluster.bootstrapNode(5, "dc3");
+            waitFor(CCMBridge.IP_PREFIX + "5", c.cluster, 20);
+
+            query(c, 12);
+
+            assertQueried(CCMBridge.IP_PREFIX + "1", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "2", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "3", 6);
+            assertQueried(CCMBridge.IP_PREFIX + "4", 6);
+            assertQueried(CCMBridge.IP_PREFIX + "5", 0);
+
+            resetCoordinators();
+            c.cassandraCluster.decommissionNode(3);
+            c.cassandraCluster.decommissionNode(4);
+            waitForDecommission(CCMBridge.IP_PREFIX + "3", c.cluster, 20);
+            waitForDecommission(CCMBridge.IP_PREFIX + "4", c.cluster, 20);
+
+            query(c, 12);
+
+            assertQueried(CCMBridge.IP_PREFIX + "1", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "2", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "3", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "4", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "5", 12);
+
+            resetCoordinators();
+            c.cassandraCluster.decommissionNode(5);
+            waitForDecommission(CCMBridge.IP_PREFIX + "5", c.cluster, 20);
+
+            query(c, 12);
+
+            assertQueried(CCMBridge.IP_PREFIX + "1", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "2", 12);
+            assertQueried(CCMBridge.IP_PREFIX + "3", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "4", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "5", 0);
+
+            resetCoordinators();
+            c.cassandraCluster.decommissionNode(2);
+            waitForDecommission(CCMBridge.IP_PREFIX + "2", c.cluster, 20);
+
+            query(c, 12);
+
+            assertQueried(CCMBridge.IP_PREFIX + "1", 12);
+            assertQueried(CCMBridge.IP_PREFIX + "2", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "3", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "4", 0);
+            assertQueried(CCMBridge.IP_PREFIX + "5", 0);
+
+        } catch (Throwable e) {
+            c.errorOut();
+            throw e;
+        } finally {
+            resetCoordinators();
+            c.discard();
+        }
+    }
+
     public void tokenAwareTest(boolean usePrepared) throws Throwable {
         Cluster.Builder builder = Cluster.builder().withLoadBalancingPolicy(new TokenAwarePolicy(new RoundRobinPolicy()));
         CCMBridge.CCMCluster c = CCMBridge.buildCluster(2, builder);
